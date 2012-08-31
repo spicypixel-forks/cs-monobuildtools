@@ -1,5 +1,5 @@
 #!/bin/sh
-. $(dirname $0)/mono-env4
+. $(dirname $0)/mono-env
 
 $MONO_PREFIX/bin/mcs -sdk:4 "$@"
 
