@@ -486,7 +486,7 @@ CopyIgnoringHiddenFiles("add_to_build_results/", "$root/builds/");
 if($ENV{UNITY_THISISABUILDMACHINE})
 {
 	my %checkouts = (
-		'mono-classlibs' => 'BUILD_VCS_NUMBER_Mono2_12_x_Unity_4_x',
+		'mono-classlibs' => 'BUILD_VCS_NUMBER_Mono_unity_master',
 		'boo' => 'BUILD_VCS_NUMBER_Boo',
 		'unityscript' => 'BUILD_VCS_NUMBER_UnityScript',
 		'cecil' => 'BUILD_VCS_NUMBER_Cecil'
