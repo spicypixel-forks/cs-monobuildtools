@@ -77,7 +77,8 @@ CONFIG_OPTS="\
 --with-glib=embedded \
 --with-sgen=no \
 --enable-nls=no \
-mono_cv_uscore=yes"
+mono_cv_uscore=yes \
+mono_cv_clang=no"
 
 function clean_build
 {
