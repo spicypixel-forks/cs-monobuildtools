@@ -78,7 +78,7 @@ if (not $skipbuild)
 {
 	if ($llvm) {
 		if (!$ENV{UNITY_THISISABUILDMACHINE}) {
-			GitClone("git://github.com/mono/llvm.git", $llvmCheckout, "mono-2-10");
+			GitClone("git://github.com/mono/llvm.git", $llvmCheckout, "mono");
 		}
 		
 		$ENV{CFLAGS} = "-mmacosx-version-min=10.5 -isysroot /Developer/SDKs/MacOSX10.5.sdk";
