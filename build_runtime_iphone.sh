@@ -1,5 +1,5 @@
 #!/bin/sh
-SDK_VERSION=5.0
+SDK_VERSION=6.1
 MAC_SDK_VERSION=10.6
 ASPEN_ROOT=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer
 SIMULATOR_ASPEN_ROOT=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer
@@ -61,47 +61,80 @@ export mono_cv_clang=no
 export cv_mono_sizeof_sunpath=104
 export ac_cv_func_posix_getpwuid_r=yes
 export ac_cv_func_backtrace_symbols=no
+#export interpreter_dir=interpreter
 
 build_arm_mono ()
 {
 	setenv "$1"
 
 	cd "$MONOROOT"
-	make clean
-	rm config.h*
+	# make clean
+	# rm config.h*
+	# 
+	# pushd eglib 
+	# ./autogen.sh --host=arm-apple-darwin9 --prefix=$PRFX
+	# make clean
+	# popd
+	# 
+	# ./autogen.sh --prefix=$PRFX --disable-mcs-build --host=arm-apple-darwin9 --disable-shared-handles --with-tls=pthread --with-sigaltstack=no --with-glib=embedded --enable-minimal=jit,profiler,com --disable-nls --with-sgen=yes || exit 1
+	# perl -pi -e 's/MONO_SIZEOF_SUNPATH 0/MONO_SIZEOF_SUNPATH 104/' config.h
+	# perl -pi -e 's/#define HAVE_FINITE 1//' config.h
+	# #perl -pi -e 's/#define HAVE_MMAP 1//' config.h
+	# perl -pi -e 's/#define HAVE_CURSES_H 1//' config.h
+	# perl -pi -e 's/#define HAVE_STRNDUP 1//' eglib/config.h
 
-	pushd eglib 
-	./autogen.sh --host=arm-apple-darwin9 --prefix=$PRFX
-	make clean
+	pushd eglib
+	make
+	popd
+	
+	pushd libgc
+	make
 	popd
 
-	./autogen.sh --prefix=$PRFX --disable-mcs-build --host=arm-apple-darwin9 --disable-shared-handles --with-tls=pthread --with-sigaltstack=no --with-glib=embedded --enable-minimal=jit,profiler,com --disable-nls --with-sgen=yes || exit 1
-	perl -pi -e 's/MONO_SIZEOF_SUNPATH 0/MONO_SIZEOF_SUNPATH 104/' config.h
-	perl -pi -e 's/#define HAVE_FINITE 1//' config.h
-	#perl -pi -e 's/#define HAVE_MMAP 1//' config.h
-	perl -pi -e 's/#define HAVE_CURSES_H 1//' config.h
-	perl -pi -e 's/#define HAVE_STRNDUP 1//' eglib/config.h
-	make
-
-	make || exit 1
+	pushd mono
+	# (pushd utils && make && popd) || exit 1
+	# (pushd io-layer && make && popd) || exit 1
+	# (pushd metadata && make && popd) || exit 1
+	# (pushd arch && make && popd) || exit 1
+	# (pushd mini && make && popd) || exit 1
+	# popd
+	# 
+	# 
+		pushd utils
+			make
+		popd
+		pushd io-layer
+			make
+		popd
+		pushd metadata
+			make
+		popd
+		pushd arch
+			make
+		popd
+		pushd mini
+			make
+		popd
+	popd
+	# exit 1
 
 	mkdir -p "$ROOT/builds/embedruntimes/iphone"
-	cp "$MONOROOT/mono/mini/.libs/libmono-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-$1.a" || exit 1
+	cp "$MONOROOT/mono/mini/.libs/libmonoboehm-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-$1.a" || exit 1
 	cp "$MONOROOT/mono/mini/.libs/libmonosgen-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-$1.a" || exit 1
 }
 
 build_iphone_runtime () 
 {
 	echo "Building iPhone runtime"
+	build_arm_mono "armv7s" || exit 1
 	build_arm_mono "armv7" || exit 1
-	build_arm_mono "armv6" || exit 1
 
-	libtool -static -o "$ROOT/builds/embedruntimes/iphone/libmono-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv6.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv7.a" || exit 1
-	rm "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv6.a"
+	libtool -static -o "$ROOT/builds/embedruntimes/iphone/libmono-2.0-arm.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv7.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv7s.a" || exit 1
 	rm "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv7.a"
-	libtool -static -o "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv6.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv7.a" || exit 1
-	rm "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv6.a"
+	rm "$ROOT/builds/embedruntimes/iphone/libmono-2.0-armv7s.a"
+	libtool -static -o "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-arm.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv7.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv7s.a" || exit 1
 	rm "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv7.a"
+	rm "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-armv7s.a"
 	unsetenv
 	echo "iPhone runtime build done"
 }
@@ -153,6 +186,13 @@ build_iphone_simulator ()
 	unsetenv
 }
 
+build_iphone_universal ()
+{
+	echo "Building iPhone universal static lib"
+	libtool -static -o "$ROOT/builds/embedruntimes/iphone/libmono-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-arm.a" "$ROOT/builds/embedruntimes/iphone/libmono-2.0-i386.a" || exit 1
+	libtool -static -o "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-arm.a" "$ROOT/builds/embedruntimes/iphone/libmonosgen-2.0-i386.a" || exit 1
+}
+
 usage()
 {
 	echo "available arguments: [--runtime-only|--xcomp-only|--simulator-only]";
@@ -175,8 +215,9 @@ if [ $# -eq 1 ]; then
 fi
 if [ $# -eq 0 ]; then
 	build_iphone_runtime || exit 1
-	build_iphone_crosscompiler || exit 1
 	build_iphone_simulator || exit 1
+	build_iphone_universal || exit 1
+	build_iphone_crosscompiler || exit 1
 fi
 if [ ${UNITY_THISISABUILDMACHINE:+1} ]; then
 	echo "mono-runtime-iphone = $BUILD_VCS_NUMBER_mono_unity_2_10_2" > $ROOT/builds/versions.txt
