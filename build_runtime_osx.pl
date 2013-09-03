@@ -882,10 +882,10 @@ sub build_iphone_runtime
 	mkpath ("$embeddir/$os");
 
 	my $macversion = '10.6';
-	my ($sdkversion, $sdkroot, $sdkpath) = detect_iphone_sdk ('5.0');
+	my ($sdkversion, $sdkroot, $sdkpath) = detect_iphone_sdk ('6.1');
 
 
-	for my $arch ('armv7') {
+	for my $arch ('armv7', 'armv7s') {
 		my $buildtarget = "$buildir/$os-$arch";
 		my $cachefile = "$buildir/$os-$arch.cache";
 
@@ -898,13 +898,8 @@ sub build_iphone_runtime
 		}
 
 		print "Copying iPhone static lib to final destination\n";
-		system("ln","-f","$buildtarget/mono/mini/.libs/libmono.a","$embeddir/$os/libmono-$arch.a") eq 0 or die("failed symlinking libmono-$arch.a");
-
-	}
-
-	for my $file ('libmono') {
-		system("libtool", "-static", "-o", "$embeddir/$os/$file.a", "$embeddir/$os/$file-armv7.a") eq 0 or dir("failed libtool");
-		system("rm", "$embeddir/$os/$file-armv7.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonoboehm-2.0.a","$embeddir/$os/libmono-2.0-$arch.a") eq 0 or die("failed symlinking libmono-2.0-$arch.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonosgen-2.0.a","$embeddir/$os/libmonosgen-2.0-$arch.a") eq 0 or die("failed symlinking libmono-2.0-$arch.a");
 	}
 }
 
@@ -922,7 +917,7 @@ sub build_iphone_simulator
 		print "\nBuilding $os for architecture: $arch\n";
 
 		my $macversion = '10.6';
-		my ($sdkversion, $sdkroot, $sdkpath) = detect_iphonesim_sdk ('5.0');
+		my ($sdkversion, $sdkroot, $sdkpath) = detect_iphonesim_sdk ('6.1');
 
 		print("buildtarget: $buildtarget\n");
 
@@ -933,9 +928,22 @@ sub build_iphone_simulator
 		}
 
 		print "Copying iPhone static lib to final destination\n";
-		system("ln","-f","$buildtarget/mono/mini/.libs/libmono.a","$embeddir/$os/libmono-$arch.a") eq 0 or die("failed symlinking libmono-$arch.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonoboehm-2.0.a","$embeddir/$os/libmono-2.0-$arch.a") eq 0 or die("failed symlinking libmono-2.0-$arch.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonosgen-2.0.a","$embeddir/$os/libmonosgen-2.0-$arch.a") eq 0 or die("failed symlinking libmonosgen-2.0-$arch.a");
 	}
 
+}
+
+sub build_iphone_universal
+{
+	my $os = "iphone";
+	
+	for my $file ('libmono-2.0','libmonosgen-2.0') {
+		system("libtool", "-static", "-o", "$embeddir/$os/$file.a", "$embeddir/$os/$file-armv7.a", "$embeddir/$os/$file-armv7s.a", "$embeddir/$os/$file-i386.a") eq 0 or dir("failed libtool");
+		system("rm", "$embeddir/$os/$file-armv7.a");
+		system("rm", "$embeddir/$os/$file-armv7s.a");
+		system("rm", "$embeddir/$os/$file-i386.a");
+	}
 }
 
 if (($cleanbuild || $reconfigure) && not $skipbuild)
@@ -947,20 +955,23 @@ if (($cleanbuild || $reconfigure) && not $skipbuild)
 my $doiphone;
 my $doiphonex;
 my $doiphones;
+my $doiphoneu;
 my $doosx;
 my $doclasslibs;
 
 $doiphone = 1 if $dobuild eq 'runtime';
-$doiphonex = 1 if $dobuild eq 'cross';
 $doiphones = 1 if $dobuild eq 'simulator';
-$doiphone = $doiphones = $doiphonex = 1 if $dobuild eq 'iphone';
+$doiphone = $doiphones = $doiphoneu = 1 if $dobuild eq 'universal';
+$doiphonex = 1 if $dobuild eq 'cross';
+$doiphone = $doiphones = $doiphoneu = $doiphonex = 1 if $dobuild eq 'iphone';
 $doclasslibs = 1 if $dobuild eq 'classlibs';
 $doosx = 1 if $dobuild eq 'osx';
 
-print "build type: osx:$doosx runtime:$doiphones simulator:$doiphones cross:$doiphonex classlibs:$doclasslibs\n";
+print "build type: osx:$doosx runtime:$doiphones simulator:$doiphones universal:$doiphoneu cross:$doiphonex classlibs:$doclasslibs\n";
 
 build_iphone_simulator if $doiphones;
 build_iphone_runtime if $doiphone;
+build_iphone_universal if $doiphoneu;
 build_iphone_crosscompiler if $doiphonex;
 build_osx if $doosx;
 build_classlibs if $doclasslibs;
