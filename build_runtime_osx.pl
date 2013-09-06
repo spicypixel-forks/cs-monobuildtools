@@ -767,11 +767,11 @@ sub build_osx
 		system ('lipo', "$distdir/bin-i386/$file", "$distdir/bin-x86_64/$file", '-create', '-output', "$distdir/bin/$file");
 	}
 
-	mkpath ("$distdir/lib");
-	# Create universal binaries
-	for my $file ('libMonoPosixHelper.dylib') {
-		system ('lipo', "$embeddir/$os-i386/$file", "$embeddir/$os-x86_64/$file", '-create', '-output', "$distdir/lib/$file");
-	}
+	# mkpath ("$distdir/lib");
+	# # Create universal binaries
+	# for my $file ('libmonoboehm-2.0.dylib','libmonoboehm-2.0.a','libmonosgen-2.0.dylib','libmonosgen-2.0.a','libMonoPosixHelper.dylib') {
+	# 	system ('lipo', "$embeddir/$os-i386/$file", "$embeddir/$os-x86_64/$file", '-create', '-output', "$distdir/lib/$file");
+	# }
 
 	if ($ENV{"UNITY_THISISABUILDMACHINE"}) {
 		for my $arch (@arches) {
