@@ -59,7 +59,7 @@ GetOptions(
    "xcodepath=s"=>\$xcodePath,
    "reconfigure=i"=>\$reconfigure
 ) or die<<EOF
-Build Mono for OSX and iPhone
+Build Mono for OSX and iOS
 
 Usage:
    -skipbuild[=1] - skips the build step (default: 0/false)
@@ -655,7 +655,7 @@ sub build_mono
 		system("perl -pi -e 's/MONO_SIZEOF_SUNPATH 0/MONO_SIZEOF_SUNPATH 104/' config.h") if ($arch eq 'armv6' || $arch eq 'armv7' || $arch eq 'armv7s');
 		system("perl -pi -e 's/#define HAVE_FINITE 1//' config.h") if ($arch eq 'armv6' || $arch eq 'armv7' || $arch eq 'armv7s');
 		system("perl -pi -e 's/#define HAVE_CURSES_H 1//' config.h") if ($arch eq 'armv6' || $arch eq 'armv7' || $arch eq 'armv7s');
-		system("perl -pi -e 's/#define HAVE_STRNDUP 1//' eglib/config.h") if ($os eq 'iphone' || $os eq 'crosscompiler');
+		system("perl -pi -e 's/#define HAVE_STRNDUP 1//' eglib/config.h") if ($os eq 'ios' || $os eq 'crosscompiler');
 	}
 
 	system("make $jobs") eq 0 or die ("failing running make for mono");
@@ -902,7 +902,7 @@ sub build_classlibs
 sub build_iphone_crosscompiler
 {
 	my $os = "crosscompiler";
-	mkpath ("$buildsroot/$os/iphone");
+	mkpath ("$buildsroot/$os/ios");
 
 	my ($sdkversion, $sdkroot, $sdkpath) = detect_osx_sdk ($osx_base_sdk);
 
@@ -917,14 +917,14 @@ sub build_iphone_crosscompiler
 
 		print "Copying mono runtime to final destination\n";
 		for my $file ('mono') {
-			system("ln","-f","$buildtarget/mono/mini/$file","$buildsroot/$os/iphone/$file-xcompiler") eq 0 or die("failed symlinking $buildtarget/mono/mini/$file to $buildsroot/$os/iphone/$file-xcompiler");
+			system("ln","-f","$buildtarget/mono/mini/$file","$buildsroot/$os/ios/$file-xcompiler") eq 0 or die("failed symlinking $buildtarget/mono/mini/$file to $buildsroot/$os/ios/$file-xcompiler");
 		}
 	}
 }
 
 sub build_iphone_runtime
 {
-	my $os = "iphone";
+	my $os = "ios";
 	mkpath ("$embeddir/$os");
 
 	my $macversion = $osx_deploy_target;
@@ -944,14 +944,14 @@ sub build_iphone_runtime
 		}
 
 		print "Copying iPhone static lib to final destination\n";
-		system("ln","-f","$buildtarget/mono/mini/.libs/libmonoboehm-2.0.a","$embeddir/$os/libmono-2.0-$arch.a") eq 0 or die("failed symlinking libmono-2.0-$arch.a");
-		system("ln","-f","$buildtarget/mono/mini/.libs/libmonosgen-2.0.a","$embeddir/$os/libmonosgen-2.0-$arch.a") eq 0 or die("failed symlinking libmono-2.0-$arch.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonoboehm-2.0.a","$embeddir/$os/libmonoboehm-2.0-$arch.a") eq 0 or die("failed symlinking libmonoboehm-2.0-$arch.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonosgen-2.0.a","$embeddir/$os/libmonosgen-2.0-$arch.a") eq 0 or die("failed symlinking libmonosgen-2.0-$arch.a");
 	}
 }
 
 sub build_iphone_simulator
 {
-	my $os = "iphone";
+	my $os = "ios";
 	mkpath ("$embeddir/$os");
 
 
@@ -974,7 +974,7 @@ sub build_iphone_simulator
 		}
 
 		print "Copying iPhone static lib to final destination\n";
-		system("ln","-f","$buildtarget/mono/mini/.libs/libmonoboehm-2.0.a","$embeddir/$os/libmono-2.0-$arch.a") eq 0 or die("failed symlinking libmono-2.0-$arch.a");
+		system("ln","-f","$buildtarget/mono/mini/.libs/libmonoboehm-2.0.a","$embeddir/$os/libmonoboehm-2.0-$arch.a") eq 0 or die("failed symlinking libmonoboehm-2.0-$arch.a");
 		system("ln","-f","$buildtarget/mono/mini/.libs/libmonosgen-2.0.a","$embeddir/$os/libmonosgen-2.0-$arch.a") eq 0 or die("failed symlinking libmonosgen-2.0-$arch.a");
 	}
 
@@ -982,10 +982,10 @@ sub build_iphone_simulator
 
 sub build_iphone_universal
 {
-	my $os = "iphone";
+	my $os = "ios";
 	
 	print "Combining iPhone libraries into universal binary\n";
-	for my $file ('libmono-2.0','libmonosgen-2.0') {
+	for my $file ('libmonoboehm-2.0','libmonosgen-2.0') {
 		system("libtool", "-static", "-o", "$embeddir/$os/$file.a", "$embeddir/$os/$file-armv7.a", "$embeddir/$os/$file-armv7s.a", "$embeddir/$os/$file-i386.a") eq 0 or dir("failed libtool");
 		system("rm", "$embeddir/$os/$file-armv7.a");
 		system("rm", "$embeddir/$os/$file-armv7s.a");
