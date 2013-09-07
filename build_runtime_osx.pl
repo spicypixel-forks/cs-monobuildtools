@@ -19,7 +19,7 @@ print "Mono checkout found in $monopath\n\n";
 
 my $extras = $monopath;
 my $buildsroot = "$root/builds";
-my $buildir = "$buildsroot/src";
+my $builddir = "$buildsroot/src";
 my $embeddir = "$buildsroot/embedruntimes";
 my $distdir = "$buildsroot/monodistribution";
 my $skipbuild=0;
@@ -111,8 +111,19 @@ if ($ENV{UNITY_THISISABUILDMACHINE})
 # adding them to our final gcc invocation to make the bundle).
 # Lucas noticed that I was lacking a Mono prefix, and having a long
 # one would give us space, so here is this silly looong prefix.
-my $prefix = "$buildsroot/tmp/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting";
+# my $prefix = "$buildsroot/tmp/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting";
 
+# Read configure.in for AC_INIT(mono, [3.2.3]
+open my $configfile_data, "$monopath/configure.in" or die "Could not open $monopath/configure.in: $!";
+my $monoversion;
+while (my $line = <$configfile_data>) {
+	if ($line =~ /AC_INIT.*\[(.*)\]/) {
+		$monoversion = "$1";
+	}
+}
+close $configfile_data;
+print "Building Mono Version $monoversion";
+my $prefix = "/Library/Frameworks/Mono.framework/Versions/$monoversion";
 
 my $savedpath = $ENV{PATH};
 my $savedcinclude = $ENV{C_INCLUDE_PATH};
@@ -481,7 +492,7 @@ sub setenv_osx
 	my $sdkversion = shift;
 	my $sdkroot = shift;
 	my $sdkpath = shift;
-
+	
 	my $path;
 
 	if ($ENV{"UNITY_THISISABUILDMACHINE"}) {
@@ -678,10 +689,11 @@ sub build_osx
 		my ($sdkversion, $sdkroot, $sdkpath) = detect_osx_sdk ($osx_base_sdk);
 
 		# Make architecture-specific targets and lipo at the end
+		my $installprefix = "$buildsroot/install/$os-$arch";
 		my $bintarget = "$distdir/bin-$arch";
 		my $libtarget = "$embeddir/$os-$arch";
-		my $buildtarget = "$buildir/$os-$arch";
-		my $cachefile = "$buildir/$os-$arch.cache";
+		my $buildtarget = "$builddir/$os-$arch";
+		my $cachefile = "$builddir/$os-$arch.cache";
 		$libtarget = "$embeddir/$os-minimal" if $minimal;
 
 		print("bintarget: $bintarget\n");
@@ -689,14 +701,17 @@ sub build_osx
 		print("buildtarget: $buildtarget\n");
 
 		system("rm -f $bintarget/mono");
-		system("rm -f $libtarget/libmono.0.dylib");
+		system("rm -f $libtarget/libmonoboehm-2.0.dylib");
+		system("rm -f $libtarget/libmonosgen-2.0.dylib");
 		system("rm -f $libtarget/libMonoPosixHelper.dylib");
-		system("rm -rf $libtarget/libmono.0.dylib.dSYM");
+		system("rm -rf $libtarget/libmonoboehm-2.0.dylib.dSYM");
+		system("rm -rf $libtarget/libmonosgen-2.0.dylib.dSYM");
 
 		if (not $skipbuild)
 		{
 			my @configureparams = setenv_osx ($arch, $cachefile, $macversion, $sdkversion, $sdkroot, $sdkpath);
-			build_mono ($arch, $buildtarget, $cachefile, $os, \@configureparams)
+			build_mono ($arch, $buildtarget, $cachefile, $os, \@configureparams);
+			system("make install DESTDIR=\"$installprefix\"") eq 0 or die ("Failed running make install");
 		}
 
 		chdir("$buildtarget") eq 1 or die ("failed to chdir to $buildtarget");
@@ -794,8 +809,8 @@ sub build_classlibs
 	# Make architecture-specific targets and lipo at the end
 	my $bintarget = "$distdir/bin";
 	my $libtarget = "$distdir/lib";
-	my $buildtarget = "$buildir/$os-$arch";
-	my $cachefile = "$buildir/$os-$arch.cache";
+	my $buildtarget = "$builddir/$os-$arch";
+	my $cachefile = "$builddir/$os-$arch.cache";
 	my $installprefix = "$buildsroot/install/classlibs";
 	my $libmono = "$libtarget/mono";
 
@@ -838,12 +853,12 @@ sub build_classlibs
 	system("cp -r $installprefix/bin $distdir/") eq 0 or die ("failed copying bin folder");
 
 	system("cp -r $installprefix/etc $distdir/") eq 0 or die("failed copy 4");
-	mkpath("$buildir/headers/mono");
-	system("cp -r $installprefix/include/mono-1.0/mono $buildir/headers/") eq 0 or die("failed copy 5");
-	system("cp $monopath/eglib/src/glib.h $buildir/headers/") eq 0 or die("failed copying glib.h");
-	system("cp $monopath/eglib/src/eglib-config.hw $buildir/headers/") eq 0 or die ("failed copying eglib-config.hw");
+	mkpath("$builddir/headers/mono");
+	system("cp -r $installprefix/include/mono-1.0/mono $builddir/headers/") eq 0 or die("failed copy 5");
+	system("cp $monopath/eglib/src/glib.h $builddir/headers/") eq 0 or die("failed copying glib.h");
+	system("cp $monopath/eglib/src/eglib-config.hw $builddir/headers/") eq 0 or die ("failed copying eglib-config.hw");
 
-	system("perl -e \"s/\\bmono_/mangledmono_/g;\" -pi \$(find $buildir/headers -type f)");
+	system("perl -e \"s/\\bmono_/mangledmono_/g;\" -pi \$(find $builddir/headers -type f)");
 
 	CopyIgnoringHiddenFiles ("$extras/add_to_build_results/monodistribution/", "$installprefix/");
 
@@ -907,8 +922,8 @@ sub build_iphone_crosscompiler
 	my ($sdkversion, $sdkroot, $sdkpath) = detect_osx_sdk ($osx_base_sdk);
 
 	for my $arch ('i386') {
-		my $buildtarget = "$buildir/$os-$arch";
-		my $cachefile = "$buildir/$os-$arch.cache";
+		my $buildtarget = "$builddir/$os-$arch";
+		my $cachefile = "$builddir/$os-$arch.cache";
 
 		print "\nBuilding $os for architecture: $arch\n";
 
@@ -932,8 +947,9 @@ sub build_iphone_runtime
 
 
 	for my $arch ('armv7', 'armv7s') {
-		my $buildtarget = "$buildir/$os-$arch";
-		my $cachefile = "$buildir/$os-$arch.cache";
+		my $installprefix = "$buildsroot/install/$os-$arch";
+		my $buildtarget = "$builddir/$os-$arch";
+		my $cachefile = "$builddir/$os-$arch.cache";
 
 		print "Building $os for architecture: $arch\n";
 
@@ -941,6 +957,7 @@ sub build_iphone_runtime
 		{
 			my @configureparams = setenv_iphone_runtime ($arch, $cachefile, $sdkversion, $sdkroot, $sdkpath);
 			build_mono ($arch, $buildtarget, $cachefile, $os, \@configureparams);
+			system("make install DESTDIR=\"$installprefix\"") eq 0 or die ("Failed running make install");
 		}
 
 		print "Copying iPhone static lib to final destination\n";
@@ -956,8 +973,9 @@ sub build_iphone_simulator
 
 
 	for my $arch ('i386') {
-		my $buildtarget = "$buildir/$os-$arch";
-		my $cachefile = "$buildir/$os-$arch.cache";
+		my $installprefix = "$buildsroot/install/$os-$arch";
+		my $buildtarget = "$builddir/$os-$arch";
+		my $cachefile = "$builddir/$os-$arch.cache";
 
 
 		print "\nBuilding $os for architecture: $arch\n";
@@ -971,6 +989,7 @@ sub build_iphone_simulator
 		{
 			my @configureparams = setenv_iphone_simulator ($arch, $cachefile, $sdkversion, $sdkroot, $sdkpath);
 			build_mono ($arch, $buildtarget, $cachefile, $os, \@configureparams);
+			system("make install DESTDIR=\"$installprefix\"") eq 0 or die ("Failed running make install");
 		}
 
 		print "Copying iPhone static lib to final destination\n";
@@ -996,7 +1015,7 @@ sub build_iphone_universal
 if (($cleanbuild || $reconfigure) && not $skipbuild)
 {
 	configure_mono;
-	mkpath("$buildir");
+	mkpath("$builddir");
 }
 
 my $doiphone;
