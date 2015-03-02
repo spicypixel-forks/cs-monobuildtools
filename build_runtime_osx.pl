@@ -42,7 +42,7 @@ my $osx_base_sdk="10.10";
 my $osx_deploy_target=10.5;
 #my $ios_base_sdk=6.1;
 my $ios_base_sdk=8.1;
-my $ios_deploy_target=5.1;
+my $ios_deploy_target=6.1;
 
 GetOptions(
    "skipbuild=i"=>\$skipbuild,
@@ -266,6 +266,8 @@ sub detect_iphone_sdk
 
 	$detectedsdk = "5.1" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "6.0" unless (-d "$sdkpath$detectedsdk.sdk");
+    $detectedsdk = "6.1" unless (-d "$sdkpath$detectedsdk.sdk");
+    $detectedsdk = "8.1" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "NaN" unless (-d "$sdkpath$detectedsdk.sdk");
 
 	die ("Requested iPhone SDK version was $sdkversion but no SDK could be found in $sdkroot/SDKs") if ($detectedsdk eq 'NaN');
@@ -287,6 +289,7 @@ sub detect_iphonesim_sdk
 	$detectedsdk = "5.1" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "6.0" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "6.1" unless (-d "$sdkpath$detectedsdk.sdk");
+    $detectedsdk = "8.1" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "NaN" unless (-d "$sdkpath$detectedsdk.sdk");
 
 	die ("Requested iPhone Simulator SDK version was $sdkversion but no SDK could be found in $sdkroot/SDKs") if ($detectedsdk eq 'NaN');
@@ -339,7 +342,7 @@ sub setenv_iphone_runtime
 	my $cpp = "cpp -nostdinc -U__powerpc__ -U__i386__ -D__arm__";
 	my $cxxpp = "cpp -nostdinc -U__powerpc__ -U__i386__ -D__arm__";
 	my $ld = $cc;
-	my $ldflags = "-liconv -Wl,-syslibroot,$sdkpath";
+	my $ldflags = "-liconv -lz -Wl,-syslibroot,$sdkpath";
 
 	my @configureparams = ();
 	unshift(@configureparams, "--cache-file=$cachefile");
@@ -400,15 +403,19 @@ sub setenv_iphone_simulator
 
 	my $cxxflags = "$cflags";
 
-	my $cc = "$sdkroot/usr/bin/gcc -arch $arch";
-	my $cxx = "$sdkroot/usr/bin/g++ -arch $arch";
-	# my $cc = "/usr/bin/clang -arch $arch";
-	# my $cxx = "/usr/bin/clang++ -arch $arch";
+    #my $cc = "$sdkroot/usr/bin/gcc -arch $arch";
+    #my $cxx = "$sdkroot/usr/bin/g++ -arch $arch";
+    my $cc = "/usr/bin/clang -arch $arch";
+	my $cxx = "/usr/bin/clang++ -arch $arch";
 
 	# my $cpp = "$cc -E";
 	# my $cxxpp;
-	my $cpp = "$sdkroot/usr/bin/cpp -nostdinc -U__powerpc__ -D__i386__ -U__arm__";
-	my $cxxpp = "$sdkroot/usr/bin/cpp -nostdinc -U__powerpc__ -D__i386__ -U__arm__";
+    #my $cpp = "$sdkroot/usr/bin/cpp -nostdinc -U__powerpc__ -D__i386__ -U__arm__";
+    #my $cxxpp = "$sdkroot/usr/bin/cpp -nostdinc -U__powerpc__ -D__i386__ -U__arm__";
+    
+    my $cpp = "cpp -nostdinc -U__powerpc__ -D__i386__ -U__arm__";
+    my $cxxpp = "cpp -nostdinc -U__powerpc__ -D__i386__ -U__arm__";
+    
 	# my $ld;
 	# my $ldflags;
 	my $ld = $cc;
@@ -425,7 +432,8 @@ sub setenv_iphone_simulator
 	unshift(@configureparams, "--disable-nls");  #this removes the dependency on gettext package
 	unshift(@configureparams, "--with-sgen=yes"); #arm
 	unshift(@configureparams, "--prefix=$prefix");
-
+    unshift(@configureparams, "--host=$arch-apple-darwin14.1.0");
+    
 	setenv ($path, $cinclude, $cppinclude, $cflags, $cxxflags, $cc, $cxx, $cpp, $cxxpp, $ld, $ldflags);
 
 	$ENV{mono_cv_uscore} = "yes";
@@ -539,7 +547,7 @@ sub setenv_osx
 	unshift(@configureparams, "--disable-nls");  #this removes the dependency on gettext package
 	unshift(@configureparams, "--prefix=$prefix");
 	unshift(@configureparams, "--enable-minimal=aot,logging,com,profiler,debug") if $minimal;
-  unshift(@configureparams, "--host=$arch-apple-darwin14.1.0");
+    unshift(@configureparams, "--host=$arch-apple-darwin14.1.0");
 	#unshift(@configureparams, "--host=$arch-apple-darwin12.2.0");
 
 	setenv ($path, $cinclude, $cppinclude, $cflags, $cxxflags, $cc, $cxx, $cpp, $cxxpp, $ld, $ldflags);
