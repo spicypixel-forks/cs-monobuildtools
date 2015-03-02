@@ -37,9 +37,11 @@ my $cleanbuildopt = 'full';
 my $unity=1;
 my $monotouch=1;
 my $injectSecurityAttributes=0;
-my $osx_base_sdk=10.7;
+#my $osx_base_sdk=10.7;
+my $osx_base_sdk="10.10";
 my $osx_deploy_target=10.5;
-my $ios_base_sdk=6.1;
+#my $ios_base_sdk=6.1;
+my $ios_base_sdk=8.1;
 my $ios_deploy_target=5.1;
 
 GetOptions(
@@ -114,7 +116,7 @@ if ($ENV{UNITY_THISISABUILDMACHINE})
 # my $prefix = "$buildsroot/tmp/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting/scripting";
 
 # Read configure.in for AC_INIT(mono, [3.2.3]
-open my $configfile_data, "$monopath/configure.in" or die "Could not open $monopath/configure.in: $!";
+open my $configfile_data, "$monopath/configure.ac" or die "Could not open $monopath/configure.ac: $!";
 my $monoversion;
 while (my $line = <$configfile_data>) {
 	if ($line =~ /AC_INIT.*\[(.*)\]/) {
@@ -173,7 +175,7 @@ sub configure_mono
 
 	print "copying automake files\n";
 	system("cat mono/mini/Makefile.am.in > mono/mini/Makefile.am") eq 0 or die ("Failed copy automake files");
-	system("cat mono/metadata/Makefile.am.in > mono/metadata/Makefile.am") eq 0 or die ("Failed copy automake files");
+	#system("cat mono/metadata/Makefile.am.in > mono/metadata/Makefile.am") eq 0 or die ("Failed copy automake files");
 
 	print "calling autoreconf -i on $monopath\n";
 	system("autoreconf -iv") eq 0 or die ("Failed autoreconfing mono");
@@ -305,6 +307,8 @@ sub detect_osx_sdk
 
 	$detectedsdk = "10.7" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "10.8" unless (-d "$sdkpath$detectedsdk.sdk");
+	$detectedsdk = "10.9" unless (-d "$sdkpath$detectedsdk.sdk");
+	$detectedsdk = "10.10" unless (-d "$sdkpath$detectedsdk.sdk");
 	$detectedsdk = "NaN" unless (-d "$sdkpath$detectedsdk.sdk");
 
 	die ("Requested MacOSX SDK version was $sdkversion but no SDK could be found in $sdkroot/SDKs/") if ($detectedsdk eq 'NaN');
@@ -535,6 +539,8 @@ sub setenv_osx
 	unshift(@configureparams, "--disable-nls");  #this removes the dependency on gettext package
 	unshift(@configureparams, "--prefix=$prefix");
 	unshift(@configureparams, "--enable-minimal=aot,logging,com,profiler,debug") if $minimal;
+  unshift(@configureparams, "--host=$arch-apple-darwin14.1.0");
+	#unshift(@configureparams, "--host=$arch-apple-darwin12.2.0");
 
 	setenv ($path, $cinclude, $cppinclude, $cflags, $cxxflags, $cc, $cxx, $cpp, $cxxpp, $ld, $ldflags);
 
@@ -726,13 +732,11 @@ sub build_osx
 			system("echo \"mono-runtime-osx = $ENV{'BUILD_VCS_NUMBER'}\" > $buildsroot/versions.txt");
 		}
 
-		# Use gcc instead of clang here as it supports reexport_library
-		my $cmdline = "gcc -arch $arch -bundle -reexport_library $buildtarget/mono/mini/.libs/libmonoboehm-2.0.a -isysroot $sdkpath -mmacosx-version-min=$macversion -all_load -liconv -o $libtarget/MonoBoehmBundleBinary -framework CoreFoundation";
+		my $cmdline = "clang -arch $arch -bundle -Wl,-reexport_library $buildtarget/mono/mini/.libs/libmonoboehm-2.0.a -isysroot $sdkpath -mmacosx-version-min=$macversion -all_load -liconv -lobjc -o $libtarget/MonoBoehmBundleBinary -framework CoreFoundation";
 		print "About to call this cmdline to make a bundle:\n$cmdline\n";
 		system($cmdline) eq 0 or die("failed to link libmonoboehm-2.0.a into mono bundle");
 
-		# Use gcc instead of clang here as it supports reexport_library
-		my $cmdline = "gcc -arch $arch -bundle -reexport_library $buildtarget/mono/mini/.libs/libmonosgen-2.0.a -isysroot $sdkpath -mmacosx-version-min=$macversion -all_load -liconv -o $libtarget/MonoSgenBundleBinary -framework CoreFoundation";
+		my $cmdline = "clang -arch $arch -bundle -Wl,-reexport_library $buildtarget/mono/mini/.libs/libmonosgen-2.0.a -isysroot $sdkpath -mmacosx-version-min=$macversion -all_load -liconv -lobjc -o $libtarget/MonoSgenBundleBinary -framework CoreFoundation";
 		print "About to call this cmdline to make a bundle:\n$cmdline\n";
 		system($cmdline) eq 0 or die("failed to link libmonosgen-2.0.a into mono bundle");
 
